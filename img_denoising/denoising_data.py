@@ -49,4 +49,4 @@ if __name__ == '__main__':
     print(len(train_dataset))
     print(len(test_dataset))
     print(test_dataset[0][0].shape)
-    print(test_dataset[1][0].shape)
+    print(test_dataset[0][1].shape)
