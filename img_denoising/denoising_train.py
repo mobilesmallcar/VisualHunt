@@ -6,7 +6,7 @@ from VisualHunt.common.utils import *
 import denoising_config
 from denoising_data import create_dataset
 from denoising_model import ConvDenoiser
-from denoising_engine import train_epoch, test_epoch
+from VisualHunt.common.engine import train_epoch, test_epoch
 
 if __name__ == '__main__':
     # 创建设备

@@ -5,7 +5,8 @@ import denoising_config
 from VisualHunt.common.utils import seed_everything
 from denoising_data import create_dataset
 from denoising_model import ConvDenoiser
-from denoising_engine import test_epoch
+# from denoising_engine import test_epoch
+from VisualHunt.common.engine import test_epoch
 
 import matplotlib.pyplot as plt
 
