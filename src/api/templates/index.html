@@ -159,6 +159,13 @@
         <p>深度学习图像检索平台 — 配置 · 预处理 · 训练 · 评估 · 预测</p>
     </header>
 
+    <div id="model-alert" style="display:none;background:linear-gradient(90deg,rgba(251,191,36,0.15),rgba(248,113,113,0.15));border:1px solid rgba(251,191,36,0.3);padding:14px 20px;text-align:center;">
+        <span style="color:var(--warn);font-weight:700;">⚠️ 模型尚未训练</span>
+        <span style="color:var(--muted);margin-left:8px;">检测到以下任务缺少模型文件，请先完成三项训练：</span>
+        <span id="model-missing-list" style="color:var(--danger);font-weight:600;"></span>
+        <button class="btn btn-sm" style="margin-left:12px;" onclick="switchTab('train');document.querySelector('.tab:nth-child(4)').click();">去训练 →</button>
+    </div>
+
     <nav class="tabs">
         <button class="tab active" onclick="switchTab('predict')">🔮 预测对比</button>
         <button class="tab" onclick="switchTab('config')">⚙️ 配置</button>
@@ -186,7 +193,7 @@
                 <br>
                 <button class="btn" id="pred-btn" onclick="doPredict()" disabled>开始分析</button>
             </div>
-            <div id="pred-results" style="display:none;">
+            <div id="pred-results" style="display:none;animation:fadeIn 0.35s ease;">
                 <div class="grid-2">
                     <div class="card">
                         <h3>🌱 原生预处理效果</h3>
@@ -474,9 +481,31 @@ data/
         function switchTab(name) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            event.target.classList.add('active');
+            // 如果 event.target 是 button，正常切换；如果是代码调用，手动找对应 button
+            let btn = event && event.target && event.target.tagName === 'BUTTON' ? event.target : document.querySelector(`.tab:nth-child(${['predict','config','preprocess','train','evaluate','test','docs'].indexOf(name)+2})`);
+            if (btn) btn.classList.add('active');
             document.getElementById('panel-' + name).classList.add('active');
         }
+
+        // 页面加载时检查模型状态
+        async function checkModels() {
+            try {
+                const res = await fetch('/api/check_models');
+                const data = await res.json();
+                const alert = document.getElementById('model-alert');
+                if (!data.all_ready) {
+                    const missing = [];
+                    if (!data.classification.exists) missing.push('分类');
+                    if (!data.denoising.exists) missing.push('去噪');
+                    if (!data.similarity.exists) missing.push('相似度');
+                    document.getElementById('model-missing-list').innerText = missing.join(' / ');
+                    alert.style.display = 'block';
+                } else {
+                    alert.style.display = 'none';
+                }
+            } catch (e) { /* 静默失败 */ }
+        }
+        checkModels();
 
         // ==================== Drag & Drop Helpers ====================
         function bindDropzone(dropId, fileId, previewId, imgId, btnId) {
@@ -499,6 +528,10 @@ data/
                 img.src = URL.createObjectURL(file);
                 preview.style.display = 'block';
                 if (btn) btn.disabled = false;
+                // 自动触发分析（仅预测 Tab）
+                if (dropId === 'pred-dropzone') {
+                    doPredict();
+                }
             }
         }
 
@@ -733,7 +766,11 @@ data/
             const badge = document.getElementById('train-status-display');
             if (s.error) badge.innerHTML = `<span class="status-badge status-error">❌ 错误</span>`;
             else if (s.running) badge.innerHTML = `<span class="status-badge status-running">▶ 训练中 (${s.task})</span>`;
-            else if (s.epoch >= s.total_epochs && s.total_epochs > 0) badge.innerHTML = `<span class="status-badge status-done">✅ 完成</span>`;
+            else if (s.epoch >= s.total_epochs && s.total_epochs > 0) {
+                badge.innerHTML = `<span class="status-badge status-done">✅ 完成</span>`;
+                // 训练完成后自动刷新模型状态
+                checkModels();
+            }
             else badge.innerHTML = `<span class="status-badge status-idle">⏸ 空闲</span>`;
 
             document.getElementById('train-msg').innerText = s.message || '';
