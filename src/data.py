@@ -55,7 +55,7 @@ class ImageLabelDataset(Dataset):
         if max_samples is not None:
             self.imgs = self.imgs[:max_samples]
 
-        labels = cast(pd.DataFrame, pd.read_csv(label_path))
+        labels = cast(pd.DataFrame, pd.read_csv(str(label_path)))
         self.labels_dict = dict(zip(labels["id"], labels["target"], strict=False))
 
     def __len__(self) -> int:

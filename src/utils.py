@@ -21,6 +21,7 @@ def seed_everything(seed: int) -> None:
         seed: 全局随机种子。
     """
     random.seed(seed)
+    # noinspection SpellCheckingInspection
     os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -46,4 +47,4 @@ def sorted_alphanum(file_names: Sequence[str | Path]) -> list[str]:
         s = str(name)
         return [int(c) if c.isdigit() else c for c in re.split(r"([0-9]+)", s)]
 
-    return sorted(file_names, key=_alphanum_key)
+    return [str(name) for name in sorted(file_names, key=_alphanum_key)]
