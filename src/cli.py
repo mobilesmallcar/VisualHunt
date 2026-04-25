@@ -236,6 +236,7 @@ def test_similarity(cfg: Config) -> None:
     encoder.load_state_dict(torch.load(cfg.model_path, map_location=device, weights_only=True))
     encoder.eval()
 
+    assert cfg.embedding_path is not None
     embeddings = np.load(cfg.embedding_path)
     print(f"嵌入矩阵形状: {embeddings.shape}")
 

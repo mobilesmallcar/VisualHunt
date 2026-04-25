@@ -673,6 +673,7 @@ def predict_api():
             encoder = ConvEncoder().to(device)
             encoder.load_state_dict(torch.load(cfg.model_path, map_location=device, weights_only=True))
             encoder.eval()
+            assert cfg.embedding_path is not None
             embeddings = np.load(cfg.embedding_path)
             indices = compute_similarity(encoder, tensor, cfg.num_similar, embeddings, device)
             full_ds = ImageDataset(cfg.img_path, _get_transform(cfg))
