@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -69,21 +70,44 @@ class Config:
         return self.model_dir / "embeddings.npy" if self.task == "similarity" else None
 
 
+def _load_runtime_cfg() -> dict:
+    """从项目根目录的 runtime_config.json 加载运行时配置。"""
+    cfg_path = Path(__file__).resolve().parent.parent / "runtime_config.json"
+    if cfg_path.exists():
+        try:
+            with open(cfg_path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def _apply_overrides(cfg: Config, overrides: dict) -> None:
+    """将字典中的值覆盖到 Config 实例，自动转换路径类型。"""
+    path_fields = {"img_path", "labels_path", "model_dir"}
+    for key, val in overrides.items():
+        if not hasattr(cfg, key):
+            continue
+        if key == "labels_path" and cfg.task != "classification":
+            continue
+        if key in path_fields and val is not None:
+            val = Path(val)
+        setattr(cfg, key, val)
+
+
+# 加载运行时配置并构建 PRESETS
+_json_cfg = _load_runtime_cfg()
+
+_classification = Config(task="classification", labels_path=Path("data/fashion-labels.csv"))
+_denoising = Config(task="denoising", img_h=68, img_w=68, epochs=30, noise_ratio=0.5)
+_similarity = Config(task="similarity", epochs=30)
+
+for _cfg in (_classification, _denoising, _similarity):
+    _apply_overrides(_cfg, _json_cfg.get("global", {}))
+    _apply_overrides(_cfg, _json_cfg.get(_cfg.task, {}))
+
 PRESETS: dict[str, Config] = {
-    "classification": Config(
-        task="classification",
-        labels_path=Path("data/fashion-labels.csv"),
-    ),
-    "denoising": Config(
-        task="denoising",
-        img_h=68,
-        img_w=68,
-        epochs=30,
-        noise_ratio=0.5,
-    ),
-    "similarity": Config(
-        task="similarity",
-        full_batch_size=32,
-        epochs=30,
-    ),
+    "classification": _classification,
+    "denoising": _denoising,
+    "similarity": _similarity,
 }

@@ -1,8 +1,36 @@
-../EmotionAnalysis/data
-
-/data/
+# Data & outputs
 /test/img/
 /test/model/
 
+# Model checkpoints & embeddings
 *.pt
+*.pth
 *.npy
+*.npz
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db

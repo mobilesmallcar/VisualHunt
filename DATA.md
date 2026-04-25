@@ -26,7 +26,7 @@ VisualHunt/
 | `id`   | int  | 图片文件名对应的数字（如 `0` 对应 `0.jpg`） |
 | `target` | int  | 类别标签，共 5 类：`0=上衣, 1=鞋, 2=包, 3=下身衣服, 4=手表` |
 
-> 如果你使用其他数据集，请自行修改 `img_classification/classification_config.py` 中的 `classification_names` 映射。
+> 如果你使用其他数据集，请自行修改 `src/config.py` 中的 `classification_names` 映射。
 
 ---
 
@@ -52,14 +52,9 @@ VisualHunt/
 
 | 模块 | 依赖路径 | 说明 |
 |------|----------|------|
-| `img_classification` | `../data/dataset/` + `../data/fashion-labels.csv` | 需要图片与 CSV 标签文件 |
-| `img_denoising` | `../data/dataset/` | 仅需图片，无需标签 |
-| `img_similarity` | `../data/dataset/` | 仅需图片，无需标签 |
+| `src/cli.py` | `data/dataset/` + `data/fashion-labels.csv` | 需要图片与 CSV 标签文件（分类任务） |
+| `src/cli.py` | `data/dataset/` | 仅需图片，无需标签（去噪/相似度任务） |
 
-> 所有模块默认以脚本所在目录为基准，通过 `../data/` 相对路径访问数据。若你调整了目录结构，请同步修改各 `*_config.py` 中的 `IMG_PATH` 与 `FASHION_LABELS_PATH`。
+> 所有模块默认以项目根目录为基准访问数据。若你调整了目录结构，请同步修改 `runtime_config.json` 中的 `img_path` 与 `labels_path`。
 
 ---
-
-## 版权与许可
-
-请确保你使用的数据符合其原始许可协议。若使用 Kaggle 数据集，请遵守相应的 Dataset License；若使用 DeepFashion，请引用其官方论文。
