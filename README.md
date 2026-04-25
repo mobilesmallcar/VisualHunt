@@ -14,6 +14,7 @@
 - 🔍 **以图搜图**：基于自编码器提取图像嵌入，结合 KNN 实现毫秒级相似图像检索。
 - 🎨 **图像去噪**：卷积自编码器学习从噪声图像恢复清晰图像。
 - 🏷️ **商品分类**：轻量 CNN 对时尚商品进行 5 类分类（上衣 / 鞋 / 包 / 下身衣服 / 手表）。
+- 🌐 **Web 可视化平台**：基于 Flask 提供训练监控、模型评估、图片上传预测等全流程 Web 界面。
 - ⚡ **纯 PyTorch 实现**：代码简洁，模块化设计，易于二次开发与学习。
 
 ---
@@ -32,8 +33,8 @@ cd VisualHunt
 # 创建虚拟环境并安装依赖
 uv sync
 
-# 验证安装
-uv run python -c "import visualhunt; print(visualhunt.__version__)"
+# 验证 CLI 可用
+uv run vh --help
 ```
 
 > 若需使用 Jupyter Notebook，可安装可选依赖：
@@ -60,34 +61,43 @@ data/
 
 ```bash
 # 图像分类
-uv run python -m visualhunt train --task classification
+uv run vh train --task classification
 
 # 图像去噪
-uv run python -m visualhunt train --task denoising
+uv run vh train --task denoising
 
 # 图像相似度（同时生成嵌入矩阵）
-uv run python -m visualhunt train --task similarity
-```
-
-或使用快捷命令（如果已安装包）：
-```bash
-uv run vh train --task classification
+uv run vh train --task similarity
 ```
 
 ### 4. 运行测试
 
 ```bash
-uv run python -m visualhunt test --task classification
-uv run python -m visualhunt test --task denoising
-uv run python -m visualhunt test --task similarity
+uv run vh test --task classification
+uv run vh test --task denoising
+uv run vh test --task similarity
 ```
 
-### 5. 命令行参数覆盖
+### 5. 启动 Web 服务
+
+项目内置了 Flask Web 平台，支持可视化训练、评估与预测：
+
+```bash
+uv run python main.py
+```
+
+然后浏览器访问 http://localhost:5000
+
+服务启动参数（host / port / debug）可在 `runtime_config.json` 的 `api` 段中修改。
+
+### 6. 命令行参数覆盖
 
 ```bash
 # 自定义训练轮次、学习率、批大小与模型保存目录
-uv run python -m visualhunt train --task classification --epochs 30 --lr 5e-4 --batch-size 64 --model-dir ./checkpoints
+uv run vh train --task classification --epochs 30 --lr 5e-4 --batch-size 64 --model-dir ./checkpoints
 ```
+
+你也可以直接修改 `runtime_config.json` 中的默认值，无需每次传参。
 
 ---
 
