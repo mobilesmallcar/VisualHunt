@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.config import PRESETS, Config
-from src.data import create_datasets
+from src.data import ImageDataset, _get_transform, create_datasets
 from src.engine import (
     compute_similarity,
     create_embeddings,
@@ -38,7 +38,8 @@ def _override_cfg(cfg: Config, args: argparse.Namespace) -> Config:
         cfg.lr = args.lr
     if args.batch_size is not None:
         cfg.batch_size = args.batch_size
-    cfg.model_dir = args.model_dir
+    if args.model_dir is not None:
+        cfg.model_dir = args.model_dir
     return cfg
 
 
@@ -51,13 +52,14 @@ def train_classification(cfg: Config) -> None:
     device = _get_device(cfg)
     seed_everything(cfg.seed)
     train_ds, test_ds, _ = create_datasets(cfg)
-    train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=True)
+    train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=len(train_ds) >= cfg.batch_size)
     test_loader = DataLoader(test_ds, batch_size=cfg.batch_size)
 
     model = ClassifierModel(cfg.num_classes).to(device)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.lr)
 
+    cfg.model_dir.mkdir(parents=True, exist_ok=True)
     min_val_loss = float("inf")
     for epoch in tqdm(range(cfg.epochs), desc="Training"):
         train_loss = train_epoch(model, train_loader, loss_fn, optimizer, device)
@@ -78,13 +80,14 @@ def train_denoising(cfg: Config) -> None:
     device = _get_device(cfg)
     seed_everything(cfg.seed)
     train_ds, test_ds, _ = create_datasets(cfg)
-    train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=True)
+    train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=len(train_ds) >= cfg.batch_size)
     test_loader = DataLoader(test_ds, batch_size=cfg.batch_size)
 
     model = ConvDenoiser().to(device)
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.lr)
 
+    cfg.model_dir.mkdir(parents=True, exist_ok=True)
     min_val_loss = float("inf")
     for epoch in tqdm(range(cfg.epochs), desc="Training"):
         train_loss = train_epoch(model, train_loader, loss_fn, optimizer, device)
@@ -102,7 +105,7 @@ def train_similarity(cfg: Config) -> None:
     device = _get_device(cfg)
     seed_everything(cfg.seed)
     train_ds, test_ds, full_ds = create_datasets(cfg)
-    train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=True)
+    train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=len(train_ds) >= cfg.batch_size)
     test_loader = DataLoader(test_ds, batch_size=cfg.batch_size)
     full_loader = DataLoader(full_ds, batch_size=cfg.full_batch_size, shuffle=False)
 
@@ -111,6 +114,7 @@ def train_similarity(cfg: Config) -> None:
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.AdamW(list(encoder.parameters()) + list(decoder.parameters()), lr=cfg.lr)
 
+    cfg.model_dir.mkdir(parents=True, exist_ok=True)
     min_val_loss = float("inf")
     for epoch in tqdm(range(cfg.epochs), desc="Training"):
         train_loss = train_epoch([encoder, decoder], train_loader, loss_fn, optimizer, device)
@@ -159,13 +163,18 @@ def test_classification(cfg: Config) -> None:
     plt.rcParams["font.sans-serif"] = ["SimHei", "DejaVu Sans", "Microsoft YaHei"]
     plt.rcParams["axes.unicode_minus"] = False
 
-    for i in range(rows * cols):
+    n_show = min(rows * cols, len(data))
+    for i in range(n_show):
         row, col = i // cols, i % cols
         true_name = cfg.classification_names[target[i].item()]
         pred_name = cfg.classification_names[predict_labels[i]]
         color = "tab:green" if target[i] == predict_labels[i] else "tab:red"
         axes[row][col].imshow(images[i])
         axes[row][col].set_title(f"真实: {true_name}\n预测: {pred_name}", color=color, fontsize=12)
+        axes[row][col].axis("off")
+
+    for i in range(n_show, rows * cols):
+        row, col = i // cols, i % cols
         axes[row][col].axis("off")
 
     plt.tight_layout()
@@ -229,9 +238,14 @@ def test_similarity(cfg: Config) -> None:
     axes[0, cfg.num_similar // 2].imshow(img_np)
     axes[0, cfg.num_similar // 2].set_title("Input Image")
 
+    # 使用完整数据集索引，避免 max_samples 限制导致越界
+    full_ds_all = ImageDataset(cfg.img_path, _get_transform(cfg))
     for i in range(cfg.num_similar):
         index = indices[0][i]
-        sim_img, _ = full_ds[index]
+        if index >= len(full_ds_all):
+            axes[1, i].axis("off")
+            continue
+        sim_img, _ = full_ds_all[index]
         sim_img = sim_img.permute(1, 2, 0).numpy()
         axes[1, i].imshow(sim_img)
 
@@ -255,7 +269,7 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=None, help="覆盖默认训练轮次")
     parser.add_argument("--lr", type=float, default=None, help="覆盖默认学习率")
     parser.add_argument("--batch-size", type=int, default=None, help="覆盖默认批大小")
-    parser.add_argument("--model-dir", type=Path, default=Path("."), help="模型保存目录")
+    parser.add_argument("--model-dir", type=Path, default=None, help="模型保存目录")
 
     args = parser.parse_args()
     cfg = _override_cfg(PRESETS[args.task], args)

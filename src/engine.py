@@ -55,7 +55,8 @@ def train_epoch(
         optimizer.zero_grad()
         total_loss += loss_val.item()
 
-    return total_loss / len(train_loader)
+    n_batches = len(train_loader)
+    return total_loss / n_batches if n_batches > 0 else 0.0
 
 
 def test_epoch(
@@ -89,7 +90,8 @@ def test_epoch(
             loss_val = loss_fn(output, target)
             total_loss += loss_val.item()
 
-    return total_loss / len(test_loader)
+    n_batches = len(test_loader)
+    return total_loss / n_batches if n_batches > 0 else 0.0
 
 
 def test_epoch_with_acc(
