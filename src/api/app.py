@@ -127,7 +127,7 @@ def _build_cfg(task: str) -> Config:
     base = Config(
         task=task,
         img_path=PROJECT_ROOT / glob.get("img_path", "data/dataset"),
-        labels_path=PROJECT_ROOT / glob.get("labels_path", "data/fashion-labels.csv") if task == "classification" else None,
+        labels_path=PROJECT_ROOT / glob.get("labels_path", "data/fashion-labels.csv"),
         img_h=task_cfg.get("img_h", 64),
         img_w=task_cfg.get("img_w", 64),
         seed=glob.get("seed", 42),

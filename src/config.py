@@ -18,7 +18,7 @@ class Config:
 
     task: str
     img_path: Path = Path("data/dataset")
-    labels_path: Path | None = None
+    labels_path: Path = Path("data/fashion-labels.csv")
     img_h: int = 64
     img_w: int = 64
     seed: int = 42

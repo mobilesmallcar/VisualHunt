@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sized
 from pathlib import Path
 from typing import cast
 
@@ -24,7 +23,8 @@ class ImageDataset(Dataset):
     def __init__(self, root_dir: Path, transform: transforms.Compose | None = None, max_samples: int | None = None) -> None:
         self.root_dir = Path(root_dir)
         self.transform = transform
-        self.imgs = sorted_alphanum([p.name for p in self.root_dir.iterdir()])
+        files: list[str] = [p.name for p in self.root_dir.iterdir()]
+        self.imgs = sorted_alphanum(files)
         if max_samples is not None:
             self.imgs = self.imgs[:max_samples]
 
@@ -50,11 +50,12 @@ class ImageLabelDataset(Dataset):
     ) -> None:
         self.root_dir = Path(root_dir)
         self.transform = transform
-        self.imgs = sorted_alphanum([p.name for p in self.root_dir.iterdir()])
+        files: list[str] = [p.name for p in self.root_dir.iterdir()]
+        self.imgs = sorted_alphanum(files)
         if max_samples is not None:
             self.imgs = self.imgs[:max_samples]
 
-        labels: pd.DataFrame = pd.read_csv(label_path)
+        labels = cast(pd.DataFrame, pd.read_csv(label_path))
         self.labels_dict = dict(zip(labels["id"], labels["target"], strict=False))
 
     def __len__(self) -> int:
@@ -81,7 +82,8 @@ class NoisyImageDataset(Dataset):
         self.root_dir = Path(root_dir)
         self.noise_ratio = noise_ratio
         self.transform = transform
-        self.imgs = sorted_alphanum([p.name for p in self.root_dir.iterdir()])
+        files: list[str] = [p.name for p in self.root_dir.iterdir()]
+        self.imgs = sorted_alphanum(files)
         if max_samples is not None:
             self.imgs = self.imgs[:max_samples]
 
@@ -121,17 +123,17 @@ def create_datasets(cfg: Config) -> tuple[Dataset, Dataset, Dataset | None]:
 
     if cfg.task == "classification":
         dataset = ImageLabelDataset(cfg.img_path, cfg.labels_path, transform, cfg.max_samples)
-        train_ds, test_ds = random_split(cast(Sized, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
+        train_ds, test_ds = random_split(cast(Dataset, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
         return train_ds, test_ds, None
 
     if cfg.task == "denoising":
         dataset = NoisyImageDataset(cfg.img_path, cfg.noise_ratio, transform, cfg.max_samples)
-        train_ds, test_ds = random_split(cast(Sized, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
+        train_ds, test_ds = random_split(cast(Dataset, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
         return train_ds, test_ds, None
 
     if cfg.task == "similarity":
         dataset = ImageDataset(cfg.img_path, transform, cfg.max_samples)
-        train_ds, test_ds = random_split(cast(Sized, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
+        train_ds, test_ds = random_split(cast(Dataset, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
         return train_ds, test_ds, dataset
 
     raise ValueError(f"未知任务类型: {cfg.task}")
