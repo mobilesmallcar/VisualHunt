@@ -1,3 +1,4 @@
+# noinspection DuplicatedCode
 """统一命令行入口：训练 / 测试 / 推理。"""
 
 from __future__ import annotations
@@ -52,6 +53,7 @@ def train_classification(cfg: Config) -> None:
     device = _get_device(cfg)
     seed_everything(cfg.seed)
     train_ds, test_ds, _ = create_datasets(cfg)
+    # noinspection PyTypeChecker
     train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=len(train_ds) >= cfg.batch_size)
     test_loader = DataLoader(test_ds, batch_size=cfg.batch_size)
 
@@ -80,6 +82,7 @@ def train_denoising(cfg: Config) -> None:
     device = _get_device(cfg)
     seed_everything(cfg.seed)
     train_ds, test_ds, _ = create_datasets(cfg)
+    # noinspection PyTypeChecker
     train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=len(train_ds) >= cfg.batch_size)
     test_loader = DataLoader(test_ds, batch_size=cfg.batch_size)
 
@@ -105,8 +108,10 @@ def train_similarity(cfg: Config) -> None:
     device = _get_device(cfg)
     seed_everything(cfg.seed)
     train_ds, test_ds, full_ds = create_datasets(cfg)
+    # noinspection PyTypeChecker
     train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=len(train_ds) >= cfg.batch_size)
     test_loader = DataLoader(test_ds, batch_size=cfg.batch_size)
+    # noinspection PyTypeChecker
     full_loader = DataLoader(full_ds, batch_size=cfg.full_batch_size, shuffle=False)
 
     encoder = ConvEncoder().to(device)
