@@ -286,7 +286,6 @@ def _train_thread(task: str) -> None:
                 val_loss = test_epoch([encoder, decoder], test_loader, loss_fn, device)
                 if val_loss < min_val_loss:
                     torch.save(encoder.state_dict(), cfg.model_path)
-                    assert cfg.decoder_path is not None
                     torch.save(decoder.state_dict(), cfg.decoder_path)
                     min_val_loss = val_loss
                 with TRAIN_LOCK:
@@ -301,7 +300,6 @@ def _train_thread(task: str) -> None:
                 full_loader = DataLoader(full_ds, batch_size=cfg.full_batch_size, shuffle=False)
                 encoder.load_state_dict(torch.load(cfg.model_path, map_location=device, weights_only=True))
                 embeddings = create_embeddings(encoder, full_loader, device)
-                assert cfg.embedding_path is not None
                 np.save(cfg.embedding_path, embeddings)
                 with TRAIN_LOCK:
                     TRAIN_STATE["message"] += f" | Embeddings: {embeddings.shape}"
@@ -523,7 +521,6 @@ def evaluate_api():
     elif task == "similarity":
         encoder = ConvEncoder().to(device)
         decoder = ConvDecoder().to(device)
-        assert cfg.decoder_path is not None
         if not cfg.model_path.exists() or not cfg.decoder_path.exists():
             return jsonify({"error": "模型文件不存在，请先训练"}), 400
         encoder.load_state_dict(torch.load(cfg.model_path, map_location=device, weights_only=True))
@@ -589,7 +586,6 @@ def analyze():
         full_loader = DataLoader(full_ds, batch_size=cfg_sim.full_batch_size, shuffle=False)
         embeddings = create_embeddings(encoder, full_loader, device)
     else:
-        assert cfg_sim.embedding_path is not None
         embeddings = np.load(cfg_sim.embedding_path)
 
     indices = compute_similarity(encoder, tensor_sim, cfg_sim.num_similar, embeddings, device)
@@ -673,7 +669,6 @@ def predict_api():
             encoder = ConvEncoder().to(device)
             encoder.load_state_dict(torch.load(cfg.model_path, map_location=device, weights_only=True))
             encoder.eval()
-            assert cfg.embedding_path is not None
             embeddings = np.load(cfg.embedding_path)
             indices = compute_similarity(encoder, tensor, cfg.num_similar, embeddings, device)
             full_ds = ImageDataset(cfg.img_path, _get_transform(cfg))

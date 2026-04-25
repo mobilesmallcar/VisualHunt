@@ -128,7 +128,6 @@ def train_similarity(cfg: Config) -> None:
         if val_loss < min_val_loss:
             min_val_loss = val_loss
             torch.save(encoder.state_dict(), cfg.model_path)
-            assert cfg.decoder_path is not None
             torch.save(decoder.state_dict(), cfg.decoder_path)
             print("验证损失减小，保存模型。")
 
@@ -137,7 +136,6 @@ def train_similarity(cfg: Config) -> None:
     # 生成图像嵌入矩阵
     encoder.load_state_dict(torch.load(cfg.model_path, map_location=device, weights_only=True))
     embeddings = create_embeddings(encoder, full_loader, device)
-    assert cfg.embedding_path is not None
     np.save(cfg.embedding_path, embeddings)
     print(f"嵌入矩阵形状: {embeddings.shape}")
 
@@ -236,7 +234,6 @@ def test_similarity(cfg: Config) -> None:
     encoder.load_state_dict(torch.load(cfg.model_path, map_location=device, weights_only=True))
     encoder.eval()
 
-    assert cfg.embedding_path is not None
     embeddings = np.load(cfg.embedding_path)
     print(f"嵌入矩阵形状: {embeddings.shape}")
 

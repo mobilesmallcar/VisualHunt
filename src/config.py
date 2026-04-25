@@ -60,14 +60,14 @@ class Config:
         return self.model_dir / name_map[self.task]
 
     @property
-    def decoder_path(self) -> Path | None:
-        """解码器保存路径（仅相似度任务）。"""
-        return self.model_dir / "decoder.pt" if self.task == "similarity" else None
+    def decoder_path(self) -> Path:
+        """解码器保存路径。"""
+        return self.model_dir / "decoder.pt"
 
     @property
-    def embedding_path(self) -> Path | None:
-        """嵌入矩阵保存路径（仅相似度任务）。"""
-        return self.model_dir / "embeddings.npy" if self.task == "similarity" else None
+    def embedding_path(self) -> Path:
+        """嵌入矩阵保存路径。"""
+        return self.model_dir / "embeddings.npy"
 
 
 def _load_runtime_cfg() -> dict:
