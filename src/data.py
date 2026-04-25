@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sized
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 import torch
@@ -13,7 +15,7 @@ from torch.utils.data import Dataset, random_split
 from src.config import Config
 from src.utils import sorted_alphanum
 
-__all__ = ["ImageDataset", "ImageLabelDataset", "NoisyImageDataset", "create_datasets"]
+__all__ = ["ImageDataset", "ImageLabelDataset", "NoisyImageDataset", "create_datasets", "_get_transform"]
 
 
 class ImageDataset(Dataset):
@@ -52,7 +54,7 @@ class ImageLabelDataset(Dataset):
         if max_samples is not None:
             self.imgs = self.imgs[:max_samples]
 
-        labels = pd.read_csv(label_path)
+        labels: pd.DataFrame = pd.read_csv(label_path)
         self.labels_dict = dict(zip(labels["id"], labels["target"], strict=False))
 
     def __len__(self) -> int:
@@ -119,17 +121,17 @@ def create_datasets(cfg: Config) -> tuple[Dataset, Dataset, Dataset | None]:
 
     if cfg.task == "classification":
         dataset = ImageLabelDataset(cfg.img_path, cfg.labels_path, transform, cfg.max_samples)
-        train_ds, test_ds = random_split(dataset, [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
+        train_ds, test_ds = random_split(cast(Sized, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
         return train_ds, test_ds, None
 
     if cfg.task == "denoising":
         dataset = NoisyImageDataset(cfg.img_path, cfg.noise_ratio, transform, cfg.max_samples)
-        train_ds, test_ds = random_split(dataset, [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
+        train_ds, test_ds = random_split(cast(Sized, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
         return train_ds, test_ds, None
 
     if cfg.task == "similarity":
         dataset = ImageDataset(cfg.img_path, transform, cfg.max_samples)
-        train_ds, test_ds = random_split(dataset, [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
+        train_ds, test_ds = random_split(cast(Sized, dataset), [cfg.train_ratio, 1 - cfg.train_ratio], generator=generator)
         return train_ds, test_ds, dataset
 
     raise ValueError(f"未知任务类型: {cfg.task}")

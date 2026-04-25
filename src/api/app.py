@@ -106,7 +106,7 @@ def _load_runtime_cfg() -> dict:
                     elif k in loaded:
                         merged[k] = loaded[k]
                 return merged
-        except Exception:
+        except (OSError, json.JSONDecodeError, KeyError, TypeError):
             pass
     return DEFAULT_RUNTIME_CFG.copy()
 
@@ -296,9 +296,11 @@ def _train_thread(task: str) -> None:
 
             # 生成 embeddings
             if not STOP_FLAG.is_set():
+                assert full_ds is not None
                 full_loader = DataLoader(full_ds, batch_size=cfg.full_batch_size, shuffle=False)
                 encoder.load_state_dict(torch.load(cfg.model_path, map_location=device, weights_only=True))
                 embeddings = create_embeddings(encoder, full_loader, device)
+                assert cfg.embedding_path is not None
                 np.save(cfg.embedding_path, embeddings)
                 with TRAIN_LOCK:
                     TRAIN_STATE["message"] += f" | Embeddings: {embeddings.shape}"
