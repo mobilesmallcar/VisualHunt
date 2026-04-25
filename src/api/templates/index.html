@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisualHunt - 深度学习图像平台</title>
+    <style>
+        :root {
+            --bg: #0b1120; --bg2: #0f172a; --card: #151e32; --surface: #1e293b;
+            --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8; --accent2: #818cf8;
+            --success: #34d399; --danger: #f87171; --warn: #fbbf24; --radius: 14px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg); color: var(--text); min-height: 100vh;
+        }
+        header {
+            text-align: center; padding: 28px 20px 16px;
+            background: linear-gradient(135deg, #0b1120 0%, #1e1b4b 100%);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        header h1 {
+            font-size: 2.2rem; font-weight: 800; letter-spacing: -1px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        header p { margin-top: 4px; color: var(--muted); font-size: 0.92rem; }
+
+        /* Tabs */
+        .tabs {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
+            padding: 12px 16px; background: var(--bg2);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            position: sticky; top: 0; z-index: 10;
+        }
+        .tab {
+            padding: 8px 16px; border-radius: 8px; cursor: pointer;
+            font-size: 0.88rem; font-weight: 600; color: var(--muted);
+            transition: all 0.2s; border: none; background: transparent;
+        }
+        .tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .tab.active { color: #fff; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+        .container {
+            max-width: 1200px; margin: 0 auto; padding: 24px 20px 40px;
+        }
+        .panel { display: none; }
+        .panel.active { display: block; animation: fadeIn 0.25s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card {
+            background: var(--card); border-radius: var(--radius);
+            padding: 22px; margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+        }
+        .card h3 {
+            font-size: 1.05rem; margin-bottom: 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+
+        /* Forms */
+        .form-row { margin-bottom: 12px; }
+        .form-row label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 4px; }
+        .form-row input, .form-row select, .form-row textarea {
+            width: 100%; padding: 8px 10px; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1); background: var(--surface);
+            color: var(--text); font-size: 0.88rem; outline: none;
+        }
+        .form-row input:focus, .form-row select:focus { border-color: var(--accent); }
+        .form-row small { color: var(--muted); font-size: 0.75rem; }
+
+        /* Buttons */
+        .btn {
+            display: inline-block; padding: 10px 24px; border: none; border-radius: 8px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            color: #fff; font-size: 0.92rem; font-weight: 600; cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            background: var(--surface); color: var(--text);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-danger { background: var(--danger); }
+        .btn-success { background: var(--success); color: #000; }
+        .btn-sm { padding: 6px 14px; font-size: 0.82rem; }
+
+        /* Dropzone */
+        .dropzone {
+            border: 2px dashed rgba(255,255,255,0.15); border-radius: var(--radius);
+            padding: 40px 24px; text-align: center; color: var(--muted); cursor: pointer;
+            transition: all 0.2s; position: relative; background: var(--card);
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--accent); background: rgba(56,189,248,0.05); color: var(--text);
+        }
+        .dropzone .icon { font-size: 2.4rem; margin-bottom: 8px; }
+        .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .preview-box { text-align: center; margin: 16px 0 8px; }
+        .preview-box img {
+            max-width: 200px; max-height: 200px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        /* Images */
+        .img-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .img-item { text-align: center; max-width: 180px; }
+        .img-item img {
+            max-width: 100%; max-height: 150px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.06); transition: transform 0.2s;
+        }
+        .img-item img:hover { transform: scale(1.05); }
+        .img-item p { margin-top: 4px; font-size: 0.75rem; color: var(--muted); }
+
+        /* Status / Metrics */
+        .metric { display: inline-block; padding: 8px 14px; background: var(--surface); border-radius: 8px; margin: 4px 8px 4px 0; font-size: 0.88rem; }
+        .metric .val { font-weight: 700; color: var(--accent); }
+        .status-badge {
+            display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+        }
+        .status-idle { background: var(--surface); color: var(--muted); }
+        .status-running { background: rgba(56,189,248,0.15); color: var(--accent); }
+        .status-done { background: rgba(52,211,153,0.15); color: var(--success); }
+        .status-error { background: rgba(248,113,113,0.15); color: var(--danger); }
+
+        /* Canvas */
+        canvas { background: var(--surface); border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+
+        /* Loading & Error */
+        .loading { color: var(--accent); font-style: italic; display: flex; align-items: center; gap: 8px; justify-content: center; padding: 20px 0; }
+        .loading::before { content: ""; width: 16px; height: 16px; border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error { color: var(--danger); font-weight: 600; }
+        .warn { color: var(--warn); font-weight: 600; }
+        .success-text { color: var(--success); font-weight: 700; }
+
+        /* Docs */
+        .doc-section { margin-bottom: 20px; }
+        .doc-section h4 { color: var(--accent); margin-bottom: 6px; font-size: 1rem; }
+        .doc-section p, .doc-section li { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+        .doc-section ul { padding-left: 20px; }
+        .doc-section code {
+            background: var(--surface); padding: 2px 6px; border-radius: 4px;
+            font-size: 0.85rem; color: var(--accent);
+        }
+
+        footer { text-align: center; padding: 28px 20px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>VisualHunt</h1>
+        <p>深度学习图像检索平台 — 配置 · 预处理 · 训练 · 评估 · 预测</p>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab active" onclick="switchTab('predict')">🔮 预测对比</button>
+        <button class="tab" onclick="switchTab('config')">⚙️ 配置</button>
+        <button class="tab" onclick="switchTab('preprocess')">🔧 预处理</button>
+        <button class="tab" onclick="switchTab('train')">🚀 训练</button>
+        <button class="tab" onclick="switchTab('evaluate')">📈 评估</button>
+        <button class="tab" onclick="switchTab('test')">🧪 测试</button>
+        <button class="tab" onclick="switchTab('docs')">📖 文档</button>
+    </nav>
+
+    <div class="container">
+        <!-- ========== 预测对比 ========== -->
+        <div class="panel active" id="panel-predict">
+            <div class="card">
+                <h3>📤 上传图片进行多任务预测</h3>
+                <p style="color:var(--muted);margin-bottom:12px;font-size:0.9rem;">上传一张图片，同时查看原生预处理效果与三个任务（分类 / 去噪 / 相似度）的模型处理结果对比。</p>
+                <div class="dropzone" id="pred-dropzone">
+                    <div class="icon">📁</div>
+                    <div>点击选择或拖拽图片到此处</div>
+                    <input type="file" id="pred-file" accept="image/*">
+                </div>
+                <div class="preview-box" id="pred-preview" style="display:none;">
+                    <img id="pred-preview-img" src="" alt="preview">
+                </div>
+                <br>
+                <button class="btn" id="pred-btn" onclick="doPredict()" disabled>开始分析</button>
+            </div>
+            <div id="pred-results" style="display:none;">
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>🌱 原生预处理效果</h3>
+                        <div class="img-item" id="pred-raw"></div>
+                    </div>
+                    <div class="card">
+                        <h3>🏷️ 分类结果</h3>
+                        <div id="pred-cls"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>🎨 去噪对比</h3>
+                    <div class="img-grid" id="pred-den"></div>
+                </div>
+                <div class="card">
+                    <h3>🔍 相似度检索</h3>
+                    <div class="img-grid" id="pred-sim"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 配置 ========== -->
+        <div class="panel" id="panel-config">
+            <div class="grid-2">
+                <div class="card">
+                    <h3>⚙️ 全局配置</h3>
+                    <div class="form-row"><label>数据目录</label><input type="text" id="cfg-img-path" value="data/dataset"></div>
+                    <div class="form-row"><label>标签文件（分类用）</label><input type="text" id="cfg-labels-path" value="data/fashion-labels.csv"></div>
+                    <div class="form-row"><label>训练集比例</label><input type="number" id="cfg-train-ratio" value="0.75" step="0.05" min="0.1" max="0.95"></div>
+                    <div class="form-row"><label>随机种子</label><input type="number" id="cfg-seed" value="42"></div>
+                    <div class="form-row"><label>模型保存目录</label><input type="text" id="cfg-model-dir" value="finetuned"></div>
+                </div>
+                <div class="card">
+                    <h3>🏷️ 分类任务配置</h3>
+                    <div class="form-row"><label>训练轮次 (epochs)</label><input type="number" id="cfg-cls-epochs" value="20" min="1"></div>
+                    <div class="form-row"><label>学习率 (lr)</label><input type="text" id="cfg-cls-lr" value="1e-3"></div>
+                    <div class="form-row"><label>批大小 (batch_size)</label><input type="number" id="cfg-cls-batch" value="32" min="1"></div>
+                    <div class="form-row"><label>图片高 (img_h)</label><input type="number" id="cfg-cls-h" value="64" min="16"></div>
+                    <div class="form-row"><label>图片宽 (img_w)</label><input type="number" id="cfg-cls-w" value="64" min="16"></div>
+                    <div class="form-row"><label>最大样本数 (max_samples)</label><input type="text" id="cfg-cls-max" value="" placeholder="留空表示全部"><small>用于快速调试，例如填 100</small></div>
+                </div>
+                <div class="card">
+                    <h3>🎨 去噪任务配置</h3>
+                    <div class="form-row"><label>训练轮次 (epochs)</label><input type="number" id="cfg-den-epochs" value="30" min="1"></div>
+                    <div class="form-row"><label>学习率 (lr)</label><input type="text" id="cfg-den-lr" value="1e-3"></div>
+                    <div class="form-row"><label>批大小 (batch_size)</label><input type="number" id="cfg-den-batch" value="32" min="1"></div>
+                    <div class="form-row"><label>图片高 (img_h)</label><input type="number" id="cfg-den-h" value="68" min="16"></div>
+                    <div class="form-row"><label>图片宽 (img_w)</label><input type="number" id="cfg-den-w" value="68" min="16"></div>
+                    <div class="form-row"><label>噪声比例 (noise_ratio)</label><input type="number" id="cfg-den-noise" value="0.5" step="0.1" min="0" max="1"></div>
+                    <div class="form-row"><label>最大样本数</label><input type="text" id="cfg-den-max" value="" placeholder="留空表示全部"></div>
+                </div>
+                <div class="card">
+                    <h3>🔍 相似度任务配置</h3>
+                    <div class="form-row"><label>训练轮次 (epochs)</label><input type="number" id="cfg-sim-epochs" value="30" min="1"></div>
+                    <div class="form-row"><label>学习率 (lr)</label><input type="text" id="cfg-sim-lr" value="1e-3"></div>
+                    <div class="form-row"><label>批大小 (batch_size)</label><input type="number" id="cfg-sim-batch" value="32" min="1"></div>
+                    <div class="form-row"><label>图片高 (img_h)</label><input type="number" id="cfg-sim-h" value="64" min="16"></div>
+                    <div class="form-row"><label>图片宽 (img_w)</label><input type="number" id="cfg-sim-w" value="64" min="16"></div>
+                    <div class="form-row"><label>全量批大小 (full_batch_size)</label><input type="number" id="cfg-sim-full" value="32" min="1"></div>
+                    <div class="form-row"><label>检索数量 (num_similar)</label><input type="number" id="cfg-sim-num" value="5" min="1" max="20"></div>
+                    <div class="form-row"><label>最大样本数</label><input type="text" id="cfg-sim-max" value="" placeholder="留空表示全部"></div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>🤗 Hugging Face 配置</h3>
+                <div class="grid-2">
+                    <div class="form-row"><label>模型仓库地址 (可选)</label><input type="text" id="cfg-hf-model" value="" placeholder="例如: username/visualhunt-classifier"></div>
+                    <div class="form-row"><label>数据集仓库地址 (可选)</label><input type="text" id="cfg-hf-dataset" value="" placeholder="例如: username/visualhunt-dataset"></div>
+                </div>
+                <p style="color:var(--muted);font-size:0.85rem;margin-top:8px;">配置 Hugging Face 仓库后，可在训练完成后一键推送模型或拉取预训练权重。</p>
+            </div>
+            <div style="text-align:center;margin-top:8px;">
+                <button class="btn" onclick="saveConfig()">💾 保存配置</button>
+                <button class="btn btn-secondary" onclick="loadConfig()">🔄 重新加载</button>
+            </div>
+        </div>
+
+        <!-- ========== 预处理 ========== -->
+        <div class="panel" id="panel-preprocess">
+            <div class="grid-3">
+                <div class="card">
+                    <h3>🌱 原生数据展示</h3>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:10px;">随机抽取数据目录中的原始图片，展示未经过任何处理的原始数据。</p>
+                    <button class="btn btn-sm" onclick="loadRawSamples()">随机抽查</button>
+                    <div class="img-grid" id="raw-samples" style="margin-top:12px;"></div>
+                </div>
+                <div class="card">
+                    <h3>🔧 预处理抽查</h3>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:10px;">对比单张图片的原始状态与经过 Resize + ToTensor 预处理后的状态。</p>
+                    <div class="form-row">
+                        <label>任务类型</label>
+                        <select id="preprocess-task">
+                            <option value="classification">分类</option>
+                            <option value="denoising">去噪</option>
+                            <option value="similarity">相似度</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-sm" onclick="loadPreprocessSample()">抽查样本</button>
+                    <div id="preprocess-result" style="margin-top:12px;"></div>
+                </div>
+                <div class="card">
+                    <h3>📦 DataLoader 批次检查</h3>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:10px;">查看一个训练批次的数据格式、张量形状、数值范围、是否有 Padding。</p>
+                    <div class="form-row">
+                        <label>任务类型</label>
+                        <select id="batch-task">
+                            <option value="classification">分类</option>
+                            <option value="denoising">去噪</option>
+                            <option value="similarity">相似度</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-sm" onclick="loadBatch()">查看批次</button>
+                    <div id="batch-result" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 训练 ========== -->
+        <div class="panel" id="panel-train">
+            <div class="grid-2">
+                <div class="card">
+                    <h3>🚀 启动训练</h3>
+                    <div class="form-row">
+                        <label>选择任务</label>
+                        <select id="train-task">
+                            <option value="classification">图像分类</option>
+                            <option value="denoising">图像去噪</option>
+                            <option value="similarity">相似度检索</option>
+                        </select>
+                    </div>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px;">训练将使用「配置」页面中的参数。开始前请确认配置正确。</p>
+                    <div id="train-status-display" style="margin-bottom:12px;">
+                        <span class="status-badge status-idle">⏸ 空闲</span>
+                    </div>
+                    <button class="btn" id="train-start-btn" onclick="startTrain()">▶ 开始训练</button>
+                    <button class="btn btn-danger" id="train-stop-btn" onclick="stopTrain()" disabled style="margin-left:8px;">⏹ 停止</button>
+                    <div id="train-msg" style="margin-top:10px;color:var(--muted);font-size:0.88rem;"></div>
+                </div>
+                <div class="card">
+                    <h3>📊 训练指标</h3>
+                    <div id="train-metrics" style="margin-bottom:10px;">
+                        <span class="metric">Epoch: <span class="val" id="metric-epoch">0/0</span></span>
+                        <span class="metric">Train Loss: <span class="val" id="metric-train">-</span></span>
+                        <span class="metric">Val Loss: <span class="val" id="metric-val">-</span></span>
+                    </div>
+                    <canvas id="loss-canvas" width="500" height="260"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== 评估 ========== -->
+        <div class="panel" id="panel-evaluate">
+            <div class="card" style="max-width:600px;margin:0 auto;">
+                <h3>📈 模型评估</h3>
+                <p style="color:var(--muted);font-size:0.9rem;margin-bottom:14px;">在测试集上运行评估，计算损失值（分类任务额外计算准确率）。</p>
+                <div class="form-row">
+                    <label>选择任务</label>
+                    <select id="eval-task">
+                        <option value="classification">图像分类</option>
+                        <option value="denoising">图像去噪</option>
+                        <option value="similarity">相似度检索</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="doEvaluate()">开始评估</button>
+                <div id="eval-result" style="margin-top:16px;"></div>
+            </div>
+        </div>
+
+        <!-- ========== 测试 ========== -->
+        <div class="panel" id="panel-test">
+            <div class="card" style="max-width:600px;margin:0 auto;">
+                <h3>🧪 单任务测试</h3>
+                <p style="color:var(--muted);font-size:0.9rem;margin-bottom:14px;">上传单张图片，使用指定任务的模型进行推理。</p>
+                <div class="form-row">
+                    <label>选择任务</label>
+                    <select id="test-task">
+                        <option value="classification">图像分类</option>
+                        <option value="denoising">图像去噪</option>
+                        <option value="similarity">相似度检索</option>
+                    </select>
+                </div>
+                <div class="dropzone" id="test-dropzone" style="padding:28px 16px;margin:12px 0;">
+                    <div class="icon">📁</div>
+                    <div>点击选择或拖拽图片</div>
+                    <input type="file" id="test-file" accept="image/*">
+                </div>
+                <div class="preview-box" id="test-preview" style="display:none;">
+                    <img id="test-preview-img" src="" alt="preview" style="max-width:160px;max-height:160px;">
+                </div>
+                <button class="btn" id="test-btn" onclick="doTest()" disabled>开始测试</button>
+                <div id="test-result" style="margin-top:16px;"></div>
+            </div>
+        </div>
+
+        <!-- ========== 文档 ========== -->
+        <div class="panel" id="panel-docs">
+            <div class="grid-2">
+                <div class="card doc-section">
+                    <h3>📖 数据预处理</h3>
+                    <h4>作用</h4>
+                    <p>将原始图片转换为模型可接受的张量格式。统一尺寸、归一化像素值，为训练和推理提供标准化的输入。</p>
+                    <h4>处理流程</h4>
+                    <ul>
+                        <li><code>Resize((H, W))</code> — 将所有图片缩放到统一尺寸（默认 64×64）</li>
+                        <li><code>ToTensor()</code> — 将 PIL Image (H×W×C, 0-255) 转为 Tensor (C×H×W, 0-1)</li>
+                        <li><b>无 Padding</b> — 直接 resize 填充，不保留原始宽高比</li>
+                    </ul>
+                    <h4>如何检查</h4>
+                    <p>在「预处理」页面中，使用「原生数据展示」查看原始图片，再用「预处理抽查」查看处理后的张量图。数值范围应为 [0.0, 1.0]，形状为 (3, H, W)。</p>
+                </div>
+                <div class="card doc-section">
+                    <h3>📖 图像分类</h3>
+                    <h4>作用</h4>
+                    <p>对时尚商品图片进行 5 分类识别：上衣、鞋、包、下身衣服、手表。</p>
+                    <h4>模型</h4>
+                    <p>轻量级 CNN（Conv + ReLU + Pool + FC），输出 5 维 logits，经 Softmax 得到概率分布。</p>
+                    <h4>训练</h4>
+                    <ul>
+                        <li>损失函数：CrossEntropyLoss</li>
+                        <li>优化器：AdamW</li>
+                        <li>监控指标：Train Loss / Val Loss / Val Accuracy</li>
+                        <li>保存策略：验证损失最低时保存</li>
+                    </ul>
+                </div>
+                <div class="card doc-section">
+                    <h3>📖 图像去噪</h3>
+                    <h4>作用</h4>
+                    <p>学习从被随机高斯噪声污染的图像中恢复清晰图像。输入为噪声图，目标为原图。</p>
+                    <h4>模型</h4>
+                    <p>卷积自编码器（ConvDenoiser）：Encoder 提取特征 → Decoder 重建图像，全卷积结构保留空间信息。</p>
+                    <h4>训练</h4>
+                    <ul>
+                        <li>噪声：高斯噪声，比例默认 0.5</li>
+                        <li>损失函数：MSELoss（像素级均方误差）</li>
+                        <li>优化器：Adam</li>
+                    </ul>
+                </div>
+                <div class="card doc-section">
+                    <h3>📖 相似度检索</h3>
+                    <h4>作用</h4>
+                    <p>将图片编码为低维嵌入向量，利用 KNN（余弦距离）在嵌入空间中检索最相似的图像。</p>
+                    <h4>模型</h4>
+                    <p>Encoder-Decoder 架构：Encoder 输出紧凑特征向量，Decoder 负责重建图像（训练用）。</p>
+                    <h4>流程</h4>
+                    <ul>
+                        <li>训练 Encoder+Decoder（MSELoss 重建）</li>
+                        <li>为全量数据集生成嵌入矩阵 embeddings.npy</li>
+                        <li>查询时提取特征，KNN 找近邻</li>
+                    </ul>
+                </div>
+                <div class="card doc-section">
+                    <h3>📖 原生数据说明</h3>
+                    <h4>数据结构</h4>
+                    <p>项目不携带原始图像，需自行准备并按以下结构放置：</p>
+                    <pre style="background:var(--surface);padding:10px;border-radius:8px;font-size:0.82rem;color:var(--muted);overflow:auto;">
+data/
+├── dataset/               # 全部原始图片
+│   ├── 0.jpg
+│   ├── 1.jpg
+│   └── ...
+└── fashion-labels.csv     # 图片 id 与类别标签映射</pre>
+                    <h4>标签文件格式</h4>
+                    <p>CSV 包含两列：<code>id</code>（图片编号，如 0, 1, 2...）和 <code>target</code>（类别编号 0-4）。</p>
+                </div>
+                <div class="card doc-section">
+                    <h3>📖 训练与评估</h3>
+                    <h4>训练</h4>
+                    <p>在「训练」页面选择任务并启动。训练在后台线程中运行，前端通过轮询实时获取损失值并绘制曲线。可随时停止。</p>
+                    <h4>评估</h4>
+                    <p>在「评估」页面选择已训练好的任务，在测试集上计算最终指标。分类任务返回 Loss + Accuracy，去噪/相似度返回 Loss。</p>
+                    <h4>配置影响</h4>
+                    <p>所有训练、评估、预处理检查均读取「配置」页面的参数。修改配置后需点击保存。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>VisualHunt — 深度学习图像检索平台</p>
+        <p>© xsy. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // ==================== Tab Switching ====================
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('panel-' + name).classList.add('active');
+        }
+
+        // ==================== Drag & Drop Helpers ====================
+        function bindDropzone(dropId, fileId, previewId, imgId, btnId) {
+            const drop = document.getElementById(dropId);
+            const input = document.getElementById(fileId);
+            const preview = document.getElementById(previewId);
+            const img = document.getElementById(imgId);
+            const btn = document.getElementById(btnId);
+            ['dragenter','dragover','dragleave','drop'].forEach(ev => {
+                drop.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, false);
+            });
+            ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, () => drop.classList.add('dragover'), false));
+            ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('dragover'), false));
+            drop.addEventListener('drop', e => { if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); }, false);
+            input.addEventListener('change', () => { if (input.files.length) handleFile(input.files[0]); });
+            function handleFile(file) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                input.files = dt.files;
+                img.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        bindDropzone('pred-dropzone', 'pred-file', 'pred-preview', 'pred-preview-img', 'pred-btn');
+        bindDropzone('test-dropzone', 'test-file', 'test-preview', 'test-preview-img', 'test-btn');
+
+        // ==================== Predict ====================
+        async function doPredict() {
+            const file = document.getElementById('pred-file').files[0];
+            if (!file) return alert('请选择图片');
+            const btn = document.getElementById('pred-btn');
+            btn.disabled = true;
+            document.getElementById('pred-results').style.display = 'none';
+
+            try {
+                const form = new FormData();
+                form.append('image', file);
+                const res = await fetch('/api/analyze', { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    renderPredict(data);
+                    document.getElementById('pred-results').style.display = 'block';
+                }
+            } catch (e) {
+                alert('请求失败: ' + e.message);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderPredict(data) {
+            // Raw
+            document.getElementById('pred-raw').innerHTML =
+                `<img src="${data.raw}" style="max-width:100%;max-height:180px;border-radius:10px;">` +
+                `<p>预处理后 (Resize + ToTensor)</p>`;
+
+            // Classification
+            document.getElementById('pred-cls').innerHTML =
+                `<div style="font-size:1.3rem;font-weight:700;color:var(--success);">${data.classification.label}</div>` +
+                `<div style="color:var(--muted);margin-top:4px;">置信度: ${(data.classification.confidence*100).toFixed(2)}%</div>` +
+                `<div style="color:var(--muted);font-size:0.75rem;margin-top:6px;word-break:break-all;">模型: ${data.classification.model}</div>`;
+
+            // Denoising
+            document.getElementById('pred-den').innerHTML =
+                `<div class="img-item"><p>加噪图像</p><img src="${data.denoising.noisy}"></div>` +
+                `<div class="img-item"><p>去噪结果</p><img src="${data.denoising.denoised}"></div>` +
+                `<div class="img-item"><p>原生预处理</p><img src="${data.raw}"></div>`;
+
+            // Similarity
+            document.getElementById('pred-sim').innerHTML =
+                `<p style="width:100%;text-align:center;color:var(--muted);margin-bottom:6px;">最相似的 ${data.similarity.images.length} 张图片</p>` +
+                data.similarity.images.map((src, i) =>
+                    `<div class="img-item"><p>#${i+1}</p><img src="${src}"></div>`
+                ).join('');
+        }
+
+        // ==================== Config ====================
+        async function loadConfig() {
+            const res = await fetch('/api/config');
+            const cfg = await res.json();
+            const g = cfg.global || {};
+            document.getElementById('cfg-img-path').value = g.img_path || 'data/dataset';
+            document.getElementById('cfg-labels-path').value = g.labels_path || 'data/fashion-labels.csv';
+            document.getElementById('cfg-train-ratio').value = g.train_ratio ?? 0.75;
+            document.getElementById('cfg-seed').value = g.seed ?? 42;
+            document.getElementById('cfg-model-dir').value = g.model_dir || 'finetuned';
+
+            const setTask = (task, pre) => {
+                const t = cfg[task] || {};
+                document.getElementById(pre + '-epochs').value = t.epochs ?? 20;
+                document.getElementById(pre + '-lr').value = t.lr ?? 1e-3;
+                document.getElementById(pre + '-batch').value = t.batch_size ?? 32;
+                document.getElementById(pre + '-h').value = t.img_h ?? 64;
+                document.getElementById(pre + '-w').value = t.img_w ?? 64;
+                document.getElementById(pre + '-max').value = t.max_samples ?? '';
+            };
+            setTask('classification', 'cfg-cls');
+            setTask('denoising', 'cfg-den');
+            document.getElementById('cfg-den-noise').value = (cfg.denoising || {}).noise_ratio ?? 0.5;
+            setTask('similarity', 'cfg-sim');
+            document.getElementById('cfg-sim-full').value = (cfg.similarity || {}).full_batch_size ?? 32;
+            document.getElementById('cfg-sim-num').value = (cfg.similarity || {}).num_similar ?? 5;
+
+            const hf = cfg.huggingface || {};
+            document.getElementById('cfg-hf-model').value = hf.model_repo || '';
+            document.getElementById('cfg-hf-dataset').value = hf.dataset_repo || '';
+        }
+
+        async function saveConfig() {
+            const cfg = {
+                global: {
+                    img_path: document.getElementById('cfg-img-path').value,
+                    labels_path: document.getElementById('cfg-labels-path').value,
+                    train_ratio: parseFloat(document.getElementById('cfg-train-ratio').value),
+                    seed: parseInt(document.getElementById('cfg-seed').value),
+                    model_dir: document.getElementById('cfg-model-dir').value,
+                },
+                classification: {
+                    epochs: parseInt(document.getElementById('cfg-cls-epochs').value),
+                    lr: parseFloat(document.getElementById('cfg-cls-lr').value),
+                    batch_size: parseInt(document.getElementById('cfg-cls-batch').value),
+                    img_h: parseInt(document.getElementById('cfg-cls-h').value),
+                    img_w: parseInt(document.getElementById('cfg-cls-w').value),
+                    max_samples: document.getElementById('cfg-cls-max').value ? parseInt(document.getElementById('cfg-cls-max').value) : null,
+                },
+                denoising: {
+                    epochs: parseInt(document.getElementById('cfg-den-epochs').value),
+                    lr: parseFloat(document.getElementById('cfg-den-lr').value),
+                    batch_size: parseInt(document.getElementById('cfg-den-batch').value),
+                    img_h: parseInt(document.getElementById('cfg-den-h').value),
+                    img_w: parseInt(document.getElementById('cfg-den-w').value),
+                    noise_ratio: parseFloat(document.getElementById('cfg-den-noise').value),
+                    max_samples: document.getElementById('cfg-den-max').value ? parseInt(document.getElementById('cfg-den-max').value) : null,
+                },
+                similarity: {
+                    epochs: parseInt(document.getElementById('cfg-sim-epochs').value),
+                    lr: parseFloat(document.getElementById('cfg-sim-lr').value),
+                    batch_size: parseInt(document.getElementById('cfg-sim-batch').value),
+                    img_h: parseInt(document.getElementById('cfg-sim-h').value),
+                    img_w: parseInt(document.getElementById('cfg-sim-w').value),
+                    full_batch_size: parseInt(document.getElementById('cfg-sim-full').value),
+                    num_similar: parseInt(document.getElementById('cfg-sim-num').value),
+                    max_samples: document.getElementById('cfg-sim-max').value ? parseInt(document.getElementById('cfg-sim-max').value) : null,
+                },
+                huggingface: {
+                    model_repo: document.getElementById('cfg-hf-model').value,
+                    dataset_repo: document.getElementById('cfg-hf-dataset').value,
+                }
+            };
+            const res = await fetch('/api/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cfg)
+            });
+            const data = await res.json();
+            alert(data.success ? '配置已保存' : '保存失败');
+        }
+        loadConfig();
+
+        // ==================== Preprocess ====================
+        async function loadRawSamples() {
+            const div = document.getElementById('raw-samples');
+            div.innerHTML = '<div class="loading">加载中...</div>';
+            try {
+                const res = await fetch('/api/raw_samples');
+                const data = await res.json();
+                div.innerHTML = data.images.map(img =>
+                    `<div class="img-item"><img src="${img.base64}"><p>${img.name}<br>${img.size}</p></div>`
+                ).join('');
+            } catch (e) { div.innerHTML = '<div class="error">加载失败</div>'; }
+        }
+
+        async function loadPreprocessSample() {
+            const task = document.getElementById('preprocess-task').value;
+            const div = document.getElementById('preprocess-result');
+            div.innerHTML = '<div class="loading">加载中...</div>';
+            try {
+                const res = await fetch('/api/preprocess_sample?task=' + task);
+                const d = await res.json();
+                if (d.error) { div.innerHTML = `<div class="error">${d.error}</div>`; return; }
+                let html = `<div class="img-grid">` +
+                    `<div class="img-item"><p>原始图片<br>${d.raw_size}</p><img src="${d.raw}"></div>` +
+                    `<div class="img-item"><p>预处理后<br>${d.preprocessed_shape.join('×')}</p><img src="${d.preprocessed}"></div>`;
+                if (d.noisy) html += `<div class="img-item"><p>加噪后<br>(去噪任务)</p><img src="${d.noisy}"></div>`;
+                html += `</div>`;
+                if (d.label) html += `<div style="margin-top:8px;color:var(--success);font-weight:600;">标签: ${d.label} (ID: ${d.label_id})</div>`;
+                div.innerHTML = html;
+            } catch (e) { div.innerHTML = '<div class="error">加载失败</div>'; }
+        }
+
+        async function loadBatch() {
+            const task = document.getElementById('batch-task').value;
+            const div = document.getElementById('batch-result');
+            div.innerHTML = '<div class="loading">加载中...</div>';
+            try {
+                const res = await fetch('/api/dataloader_batch?task=' + task);
+                const d = await res.json();
+                if (d.error) { div.innerHTML = `<div class="error">${d.error}</div>`; return; }
+                let html = `<div style="margin-bottom:10px;">` +
+                    `<span class="metric">Shape: <span class="val">${d.tensor_shape.join('×')}</span></span>` +
+                    `<span class="metric">Dtype: <span class="val">${d.dtype}</span></span>` +
+                    `<span class="metric">Range: <span class="val">${d.value_range}</span></span>` +
+                    `<span class="metric">Padding: <span class="val">${d.has_padding ? '有' : '无'}</span></span>` +
+                    `</div>` +
+                    `<div class="img-grid">`;
+                d.images.forEach((src, i) => {
+                    html += `<div class="img-item"><p>${d.targets[i] || 'target'}</p><img src="${src}"></div>`;
+                });
+                html += `</div>`;
+                div.innerHTML = html;
+            } catch (e) { div.innerHTML = '<div class="error">加载失败</div>'; }
+        }
+
+        // ==================== Train ====================
+        async function startTrain() {
+            const task = document.getElementById('train-task').value;
+            const res = await fetch('/api/train', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task })
+            });
+            const data = await res.json();
+            if (data.error) alert(data.error);
+            else {
+                document.getElementById('train-start-btn').disabled = true;
+                document.getElementById('train-stop-btn').disabled = false;
+                pollTrainStatus();
+            }
+        }
+
+        async function stopTrain() {
+            await fetch('/api/stop_train', { method: 'POST' });
+        }
+
+        let trainPollId = null;
+        function pollTrainStatus() {
+            if (trainPollId) clearInterval(trainPollId);
+            trainPollId = setInterval(async () => {
+                const res = await fetch('/api/train_status');
+                const s = await res.json();
+                updateTrainUI(s);
+                if (!s.running && s.epoch >= s.total_epochs) {
+                    clearInterval(trainPollId);
+                    trainPollId = null;
+                    document.getElementById('train-start-btn').disabled = false;
+                    document.getElementById('train-stop-btn').disabled = true;
+                }
+            }, 1000);
+        }
+
+        function updateTrainUI(s) {
+            const badge = document.getElementById('train-status-display');
+            if (s.error) badge.innerHTML = `<span class="status-badge status-error">❌ 错误</span>`;
+            else if (s.running) badge.innerHTML = `<span class="status-badge status-running">▶ 训练中 (${s.task})</span>`;
+            else if (s.epoch >= s.total_epochs && s.total_epochs > 0) badge.innerHTML = `<span class="status-badge status-done">✅ 完成</span>`;
+            else badge.innerHTML = `<span class="status-badge status-idle">⏸ 空闲</span>`;
+
+            document.getElementById('train-msg').innerText = s.message || '';
+            document.getElementById('metric-epoch').innerText = `${s.epoch}/${s.total_epochs}`;
+            document.getElementById('metric-train').innerText = s.train_losses.length ? s.train_losses[s.train_losses.length - 1].toFixed(4) : '-';
+            document.getElementById('metric-val').innerText = s.val_losses.length ? s.val_losses[s.val_losses.length - 1].toFixed(4) : '-';
+
+            drawLossCurve(s.train_losses, s.val_losses);
+        }
+
+        function drawLossCurve(train, val) {
+            const canvas = document.getElementById('loss-canvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            if (train.length < 2) return;
+
+            const pad = 40;
+            const maxLoss = Math.max(...train, ...val, 0.1) * 1.1;
+            const minLoss = Math.min(...train, ...val) * 0.9;
+            const xStep = (w - pad * 2) / (train.length - 1);
+            const yScale = (h - pad * 2) / (maxLoss - minLoss);
+
+            const toX = i => pad + i * xStep;
+            const toY = v => h - pad - (v - minLoss) * yScale;
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = pad + (h - pad * 2) * i / 4;
+                ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
+            }
+
+            // Train line
+            ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            train.forEach((v, i) => { if (i === 0) ctx.moveTo(toX(i), toY(v)); else ctx.lineTo(toX(i), toY(v)); });
+            ctx.stroke();
+
+            // Val line
+            ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            val.forEach((v, i) => { if (i === 0) ctx.moveTo(toX(i), toY(v)); else ctx.lineTo(toX(i), toY(v)); });
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#94a3b8'; ctx.font = '12px sans-serif';
+            ctx.fillText(maxLoss.toFixed(3), 4, pad + 4);
+            ctx.fillText(minLoss.toFixed(3), 4, h - pad + 4);
+            ctx.fillText('Epoch', w / 2 - 14, h - 6);
+            ctx.fillText('Train Loss', w - 90, 14);
+            ctx.fillStyle = '#38bdf8'; ctx.fillRect(w - 110, 6, 12, 4);
+            ctx.fillStyle = '#f87171'; ctx.fillText('Val Loss', w - 90, 28);
+            ctx.fillStyle = '#f87171'; ctx.fillRect(w - 110, 20, 12, 4);
+        }
+
+        // ==================== Evaluate ====================
+        async function doEvaluate() {
+            const task = document.getElementById('eval-task').value;
+            const div = document.getElementById('eval-result');
+            div.innerHTML = '<div class="loading">评估中...</div>';
+            try {
+                const res = await fetch('/api/evaluate', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task })
+                });
+                const d = await res.json();
+                if (d.error) { div.innerHTML = `<div class="error">${d.error}</div>`; return; }
+                let html = `<div class="metric">测试集 Loss: <span class="val">${d.loss.toFixed(6)}</span></div>`;
+                if (d.accuracy !== undefined) html += `<div class="metric">准确率: <span class="val">${(d.accuracy * 100).toFixed(2)}%</span></div>`;
+                div.innerHTML = html;
+            } catch (e) { div.innerHTML = '<div class="error">请求失败</div>'; }
+        }
+
+        // ==================== Test ====================
+        async function doTest() {
+            const file = document.getElementById('test-file').files[0];
+            const task = document.getElementById('test-task').value;
+            if (!file) return alert('请选择图片');
+            const div = document.getElementById('test-result');
+            div.innerHTML = '<div class="loading">测试中...</div>';
+            try {
+                const form = new FormData();
+                form.append('image', file);
+                form.append('task', task);
+                const res = await fetch('/api/predict', { method: 'POST', body: form });
+                const d = await res.json();
+                if (d.error) { div.innerHTML = `<div class="error">${d.error}</div>`; return; }
+
+                let html = `<div class="img-grid">`;
+                html += `<div class="img-item"><p>原生预处理</p><img src="${d.raw}"></div>`;
+                if (d.noisy) html += `<div class="img-item"><p>加噪图</p><img src="${d.noisy}"></div>`;
+                if (Array.isArray(d.result)) {
+                    d.result.forEach((src, i) => {
+                        html += `<div class="img-item"><p>相似 #${i+1}</p><img src="${src}"></div>`;
+                    });
+                } else {
+                    html += `<div style="flex:1;min-width:200px;display:flex;align-items:center;justify-content:center;">` +
+                        `<div style="font-size:1.1rem;font-weight:700;color:var(--accent);">${d.result}</div></div>`;
+                }
+                html += `</div>`;
+                html += `<div style="margin-top:8px;color:var(--muted);font-size:0.78rem;word-break:break-all;">模型: ${d.model_used}</div>`;
+                div.innerHTML = html;
+            } catch (e) { div.innerHTML = '<div class="error">请求失败</div>'; }
+        }
+    </script>
+</body>
+</html>
