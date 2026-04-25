@@ -228,7 +228,7 @@ def _train_thread(task: str) -> None:
     try:
         seed_everything(cfg.seed)
         train_ds, test_ds, full_ds = create_datasets(cfg)
-        train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=True)
+        train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, drop_last=len(train_ds) >= cfg.batch_size)
         test_loader = DataLoader(test_ds, batch_size=cfg.batch_size)
 
         with TRAIN_LOCK:
