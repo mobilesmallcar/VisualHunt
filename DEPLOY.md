@@ -2,7 +2,7 @@
 
 > 目标服务器：Ubuntu 20.04/22.04/24.04  
 > 部署路径：`/opt/visualHunt`  
-> 代码仓库：https://gitee.com/myparadises/visual-hunt.git  
+> 代码仓库：https://gitee.com/nlp-learning/visual-hunt.git  
 > 服务端口：5176（容器内部端口，对外通过 Nginx 反向代理暴露）
 
 ---
@@ -56,11 +56,11 @@ uv --version
 
 ```bash
 sudo mkdir -p /opt
-sudo git clone -b dev https://gitee.com/myparadises/visual-hunt.git /opt/visualHunt
+sudo git clone -b git-cpu部署 https://gitee.com/nlp-learning/visual-hunt.git /opt/visualHunt
 sudo chown -R $(whoami):$(whoami) /opt/visualHunt
 ```
 
-> **注意**：`dev` 分支已配置为 CPU 版 PyTorch，且仓库中已包含 `finetuned/` 目录下的预训练模型。
+> **注意**：`git-cpu部署` 分支已配置为 CPU 版 PyTorch，且仓库中已包含 `finetuned/` 目录下的预训练模型。
 
 ---
 
@@ -268,7 +268,7 @@ sudo ufw reload
 
 ```bash
 cd /opt/visualHunt
-git pull origin dev
+git pull origin git-cpu部署
 
 # 如果依赖有变化，需要重新构建 .venv 和镜像
 uv sync
@@ -345,12 +345,12 @@ sudo tail -f /var/log/nginx/error.log
 set -e
 
 PROJECT_DIR="/opt/visualHunt"
-REPO_URL="https://gitee.com/myparadises/visual-hunt.git"
+REPO_URL="https://gitee.com/nlp-learning/visual-hunt.git"
 
 echo "=== 1. 克隆项目 ==="
 sudo mkdir -p /opt
 if [ ! -d "$PROJECT_DIR/.git" ]; then
-    sudo git clone -b dev "$REPO_URL" "$PROJECT_DIR"
+    sudo git clone -b git-cpu部署 "$REPO_URL" "$PROJECT_DIR"
 fi
 sudo chown -R "$(whoami):$(whoami)" "$PROJECT_DIR"
 
