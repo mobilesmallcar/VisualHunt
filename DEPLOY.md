@@ -56,11 +56,11 @@ uv --version
 
 ```bash
 sudo mkdir -p /opt
-sudo git clone -b git-cpu部署 https://gitee.com/nlp-learning/visual-hunt.git /opt/visualHunt
+sudo git clone -b cpu-部署 https://gitee.com/nlp-learning/visual-hunt.git /opt/visualHunt
 sudo chown -R $(whoami):$(whoami) /opt/visualHunt
 ```
 
-> **注意**：`git-cpu部署` 分支已配置为 CPU 版 PyTorch，且仓库中已包含 `finetuned/` 目录下的预训练模型。
+> **注意**：`cpu-部署` 分支已配置为 CPU 版 PyTorch，且仓库中已包含 `finetuned/` 目录下的预训练模型。
 
 ---
 
@@ -268,7 +268,7 @@ sudo ufw reload
 
 ```bash
 cd /opt/visualHunt
-git pull origin git-cpu部署
+git pull origin cpu-部署
 
 # 如果依赖有变化，需要重新构建 .venv 和镜像
 uv sync
@@ -350,7 +350,7 @@ REPO_URL="https://gitee.com/nlp-learning/visual-hunt.git"
 echo "=== 1. 克隆项目 ==="
 sudo mkdir -p /opt
 if [ ! -d "$PROJECT_DIR/.git" ]; then
-    sudo git clone -b git-cpu部署 "$REPO_URL" "$PROJECT_DIR"
+    sudo git clone -b cpu-部署 "$REPO_URL" "$PROJECT_DIR"
 fi
 sudo chown -R "$(whoami):$(whoami)" "$PROJECT_DIR"
 
