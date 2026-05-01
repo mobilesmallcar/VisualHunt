@@ -25,15 +25,10 @@ build-backend = "hatchling.build"
 packages = ["src"]
 
 [[tool.uv.index]]
-name = "pytorch-cu130"
-url = "https://download.pytorch.org/whl/cu130"
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.uv.sources]
-torch = { index = "pytorch-cu130" }
-torchvision = { index = "pytorch-cu130" }
-
-[tool.uv]
-required-environments = [
-    'sys_platform == "win32" and platform_machine == "AMD64"'
-]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }

@@ -34,7 +34,7 @@ def _load_api_cfg() -> dict:
 if __name__ == "__main__":
     api_cfg = _load_api_cfg()
     host = api_cfg.get("host", "0.0.0.0")
-    port = api_cfg.get("port", 5000)
+    port = api_cfg.get("port", 5176)
     debug = api_cfg.get("debug", True)
 
     # Windows 控制台 UTF-8 支持
