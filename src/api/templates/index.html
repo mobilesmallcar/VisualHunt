@@ -490,7 +490,7 @@ data/
         // 页面加载时检查模型状态
         async function checkModels() {
             try {
-                const res = await fetch('/api/check_models');
+                const res = await fetch('./api/check_models');
                 const data = await res.json();
                 const alert = document.getElementById('model-alert');
                 if (!data.all_ready) {
@@ -549,7 +549,7 @@ data/
             try {
                 const form = new FormData();
                 form.append('image', file);
-                const res = await fetch('/api/analyze', { method: 'POST', body: form });
+                const res = await fetch('./api/analyze', { method: 'POST', body: form });
                 const data = await res.json();
                 if (data.error) {
                     alert(data.error);
@@ -592,7 +592,7 @@ data/
 
         // ==================== Config ====================
         async function loadConfig() {
-            const res = await fetch('/api/config');
+            const res = await fetch('./api/config');
             const cfg = await res.json();
             const g = cfg.global || {};
             document.getElementById('cfg-img-path').value = g.img_path || 'data/dataset';
@@ -663,7 +663,7 @@ data/
                     dataset_repo: document.getElementById('cfg-hf-dataset').value,
                 }
             };
-            const res = await fetch('/api/config', {
+            const res = await fetch('./api/config', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(cfg)
             });
@@ -677,7 +677,7 @@ data/
             const div = document.getElementById('raw-samples');
             div.innerHTML = '<div class="loading">加载中...</div>';
             try {
-                const res = await fetch('/api/raw_samples');
+                const res = await fetch('./api/raw_samples');
                 const data = await res.json();
                 div.innerHTML = data.images.map(img =>
                     `<div class="img-item"><img src="${img.base64}"><p>${img.name}<br>${img.size}</p></div>`
@@ -690,7 +690,7 @@ data/
             const div = document.getElementById('preprocess-result');
             div.innerHTML = '<div class="loading">加载中...</div>';
             try {
-                const res = await fetch('/api/preprocess_sample?task=' + task);
+                const res = await fetch('./api/preprocess_sample?task=' + task);
                 const d = await res.json();
                 if (d.error) { div.innerHTML = `<div class="error">${d.error}</div>`; return; }
                 let html = `<div class="img-grid">` +
@@ -708,7 +708,7 @@ data/
             const div = document.getElementById('batch-result');
             div.innerHTML = '<div class="loading">加载中...</div>';
             try {
-                const res = await fetch('/api/dataloader_batch?task=' + task);
+                const res = await fetch('./api/dataloader_batch?task=' + task);
                 const d = await res.json();
                 if (d.error) { div.innerHTML = `<div class="error">${d.error}</div>`; return; }
                 let html = `<div style="margin-bottom:10px;">` +
@@ -729,7 +729,7 @@ data/
         // ==================== Train ====================
         async function startTrain() {
             const task = document.getElementById('train-task').value;
-            const res = await fetch('/api/train', {
+            const res = await fetch('./api/train', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ task })
             });
@@ -743,14 +743,14 @@ data/
         }
 
         async function stopTrain() {
-            await fetch('/api/stop_train', { method: 'POST' });
+            await fetch('./api/stop_train', { method: 'POST' });
         }
 
         let trainPollId = null;
         function pollTrainStatus() {
             if (trainPollId) clearInterval(trainPollId);
             trainPollId = setInterval(async () => {
-                const res = await fetch('/api/train_status');
+                const res = await fetch('./api/train_status');
                 const s = await res.json();
                 updateTrainUI(s);
                 if (!s.running && s.epoch >= s.total_epochs) {
@@ -834,7 +834,7 @@ data/
             const div = document.getElementById('eval-result');
             div.innerHTML = '<div class="loading">评估中...</div>';
             try {
-                const res = await fetch('/api/evaluate', {
+                const res = await fetch('./api/evaluate', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ task })
                 });
@@ -857,7 +857,7 @@ data/
                 const form = new FormData();
                 form.append('image', file);
                 form.append('task', task);
-                const res = await fetch('/api/predict', { method: 'POST', body: form });
+                const res = await fetch('./api/predict', { method: 'POST', body: form });
                 const d = await res.json();
                 if (d.error) { div.innerHTML = `<div class="error">${d.error}</div>`; return; }
 
