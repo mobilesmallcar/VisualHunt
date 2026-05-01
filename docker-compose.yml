@@ -16,3 +16,9 @@ services:
       - ./finetuned:/app/finetuned
       - ./runtime_config.json:/app/runtime_config.json
     restart: unless-stopped
+    networks:
+      - projects-net          # 新增：加入公共网络
+
+networks:
+  projects-net:
+    external: true             # 新增：使用外部网络
