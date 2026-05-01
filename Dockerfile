@@ -18,7 +18,7 @@ RUN rm -f /app/.venv/bin/python /app/.venv/bin/python3 /app/.venv/bin/python3.10
     ln -s $(which python3.10) /app/.venv/bin/python3 && \
     ln -s $(which python3.10) /app/.venv/bin/python3.10
 
-EXPOSE 5000
+EXPOSE 5176
 
 # 使用容器内 .venv 的 Python 直接启动服务
 CMD ["/app/.venv/bin/python", "main.py"]
