@@ -2,8 +2,10 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# 安装 PyTorch 等原生扩展可能依赖的系统库
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# 换国内 apt 源，加速构建（Debian Trixie 使用 debian.sources 格式）
+RUN sed -i 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
