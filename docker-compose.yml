@@ -12,6 +12,9 @@ services:
       - "5176:5176"
     # 挂载数据与配置，方便后续热更新而不需要重新构建镜像
     volumes:
+      # 代码热更新：git pull 后 restart 即可生效，无需重新 build 镜像
+      - ./src:/app/src
+      - ./main.py:/app/main.py
       - ./data:/app/data
       - ./finetuned:/app/finetuned
       - ./runtime_config.json:/app/runtime_config.json
