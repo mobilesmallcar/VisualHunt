@@ -14,8 +14,8 @@ COPY . /app/
 
 # 修复 .venv 中的 Python 解释器软链接。
 # 宿主机上 uv 创建的 .venv/bin/python 可能是指向宿主机绝对路径的软链接，
-# 在容器内会失效，因此重新链接到容器自带的 Python 3.10。
-RUN rm -f /app/.venv/bin/python /app/.venv/bin/python3 /app/.venv/bin/python3.10 && \
+# 在容器内会失效，因此重新链接到容器自带的 Python 3.12。
+RUN rm -f /app/.venv/bin/python /app/.venv/bin/python3 /app/.venv/bin/python3.12 && \
     ln -s $(which python3.12) /app/.venv/bin/python && \
     ln -s $(which python3.12) /app/.venv/bin/python3 && \
     ln -s $(which python3.12) /app/.venv/bin/python3.12
