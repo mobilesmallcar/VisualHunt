@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  visualhunt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: visualhunt:dev
+    container_name: visualhunt
+    # 将容器 5000 端口映射到宿主机 5000 端口（可自行修改）
+    ports:
+      - "5000:5000"
+    # 挂载数据与配置，方便后续热更新而不需要重新构建镜像
+    volumes:
+      - ./data:/app/data
+      - ./finetuned:/app/finetuned
+      - ./runtime_config.json:/app/runtime_config.json
+    restart: unless-stopped

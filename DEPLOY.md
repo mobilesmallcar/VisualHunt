@@ -1,47 +1,53 @@
-# VisualHunt Ubuntu 服务器部署文档
+# VisualHunt Docker 部署文档（Ubuntu）
 
 > 目标服务器：Ubuntu 20.04/22.04/24.04  
 > 部署路径：`/opt/visualHunt`  
 > 代码仓库：https://gitee.com/myparadises/visual-hunt.git  
-> 服务端口：5176（Flask 内部端口，对外通过 Nginx 反向代理暴露）
+> 服务端口：5000（容器内部端口，对外通过 Nginx 反向代理暴露）
+
+---
+
+## 前置要求
+
+- 服务器已安装 **Docker** 和 **Docker Compose**
+- 服务器已有 **Python 3.10+** 和 **uv**（用于宿主机预构建 `.venv`）
+- **`.venv` 必须在 Linux x86_64 环境下构建**，Windows/macOS 构建的 `.venv` 无法直接复制到 Linux 容器运行
 
 ---
 
 ## 一、服务器环境准备
 
-### 1.1 更新系统并安装基础依赖
+### 1.1 安装 Docker & Docker Compose
 
 ```bash
+# 更新系统
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git wget curl vim nginx
+
+# 安装 Docker
+sudo apt install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# 验证
+sudo docker --version
+sudo docker compose version
 ```
 
-### 1.2 确认 Python 版本
-
-本项目需要 Python >= 3.10，你的服务器已有 Python 3.10.12，无需额外安装：
-
-```bash
-python3 --version   # Python 3.10.12
-```
-
-### 1.3 安装 uv（包管理器）
+### 1.2 安装 uv（宿主机包管理器）
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source $HOME/.local/bin/env
 uv --version
-```
-
-> uv 默认安装在 `$HOME/.local/bin`，安装后执行 `source $HOME/.local/bin/env` 加载 PATH。
-
-如果镜像较慢，可配置国内 pip 源：
-
-```bash
-mkdir -p ~/.config/pip
-cat > ~/.config/pip/pip.conf << 'EOF'
-[global]
-index-url = https://pypi.tuna.tsinghua.edu.cn/simple
-EOF
 ```
 
 ---
@@ -50,123 +56,121 @@ EOF
 
 ```bash
 sudo mkdir -p /opt
-sudo git clone https://gitee.com/myparadises/visual-hunt.git /opt/visualHunt
+sudo git clone -b dev https://gitee.com/myparadises/visual-hunt.git /opt/visualHunt
 sudo chown -R $(whoami):$(whoami) /opt/visualHunt
 ```
 
-> **注意**：仓库中已包含 `finetuned/` 目录下的预训练模型（`classifier.pt`、`decoder.pt`、`denoiser.pt`、`encoder.pt`、`embeddings.npy`），无需单独下载。
+> **注意**：`dev` 分支已配置为 CPU 版 PyTorch，且仓库中已包含 `finetuned/` 目录下的预训练模型。
 
 ---
 
-## 三、安装项目依赖（CPU 版本）
+## 三、宿主机预构建 .venv
 
-`dev` 分支已配置为 CPU 版 PyTorch：
+**核心原则**：在宿主机上先用 `uv sync` 装好所有依赖，构建 Docker 镜像时直接把 `.venv` 复制进去，避免容器内重复下载。
 
 ```bash
 cd /opt/visualHunt
 
-# 使用 uv 创建虚拟环境并安装依赖
+# 创建虚拟环境并安装依赖（CPU 版 PyTorch）
 uv sync
 
 # 验证 CLI
 uv run vh --help
 ```
 
-> 当前 `pyproject.toml` 中 PyTorch 源已指向 `https://download.pytorch.org/whl/cpu`，适用于无 GPU 的服务器。
+> 如果执行报错，确认 `pyproject.toml` 中 PyTorch 源为 `https://download.pytorch.org/whl/cpu`。
 
 ---
 
-## 四、配置运行参数
+## 四、修改运行配置
 
-编辑 `runtime_config.json`，根据生产环境调整 API 参数：
+容器内 Flask 必须监听 `0.0.0.0`，否则宿主机和 Nginx 无法访问到容器服务。
 
 ```bash
 cd /opt/visualHunt
 vim runtime_config.json
 ```
 
-建议生产环境配置：
+改为：
 
 ```json
 {
   "api": {
-    "host": "127.0.0.1",
+    "host": "0.0.0.0",
     "port": 5000,
     "debug": false
   }
 }
 ```
 
-> - `host` 设为 `127.0.0.1` 而非 `0.0.0.0`，让 Flask 只监听本机，由 Nginx 反向代理对外提供服务，更安全。
-> - `debug` 设为 `false`，避免暴露调试信息。
+> - `host` 必须是 `0.0.0.0`，容器内只监听 `127.0.0.1` 会导致外部无法访问。
+> - `debug` 生产环境设为 `false`。
 
 ---
 
-## 五、使用 Systemd 管理服务
+## 五、构建并启动容器
 
-创建 systemd 服务文件，让 VisualHunt 随系统启动自动运行。
-
-```bash
-sudo vim /etc/systemd/system/visualhunt.service
-```
-
-写入以下内容（**注意替换 `User=ubuntu` 为你实际运行的用户**）：
-
-```ini
-[Unit]
-Description=VisualHunt Flask Web Service
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/opt/visualHunt
-ExecStart=/home/ubuntu/.local/bin/uv run python main.py
-Restart=always
-RestartSec=5
-Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONIOENCODING=utf-8
-
-[Install]
-WantedBy=multi-user.target
-```
-
-> **注意**：`ExecStart` 中的 `/home/ubuntu/.local/bin/uv` 是 uv 的安装路径。如果是其他用户，请替换为 `$(whoami)` 对应的路径，或用 `which uv` 查询。
-
-启动并启用服务：
+### 5.1 构建镜像
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable visualhunt
-sudo systemctl start visualhunt
-sudo systemctl status visualhunt
+cd /opt/visualHunt
+sudo docker build -t visualhunt:dev .
+```
+
+构建过程说明：
+- Dockerfile 会复制整个项目（含 `.venv`、代码、模型）到 `/app`
+- 修复 `.venv/bin/python*` 的软链接，使其指向容器内的 Python 3.10
+- 暴露 5000 端口
+
+### 5.2 使用 Docker Compose 启动（推荐）
+
+```bash
+sudo docker compose up -d
+```
+
+查看日志：
+
+```bash
+sudo docker logs -f visualhunt
 ```
 
 常用命令：
 
 ```bash
-sudo systemctl start visualhunt    # 启动
-sudo systemctl stop visualhunt     # 停止
-sudo systemctl restart visualhunt  # 重启
-sudo systemctl status visualhunt   # 查看状态
-sudo journalctl -u visualhunt -f   # 实时查看日志
+sudo docker compose up -d        # 后台启动
+sudo docker compose down         # 停止并移除容器
+sudo docker compose restart      # 重启
+sudo docker compose pull && sudo docker compose up -d --build   # 更新后重新构建
+```
+
+> `docker-compose.yml` 中已将 `./data`、`./finetuned` 和 `runtime_config.json` 挂载为 volume，后续修改数据和配置无需重新构建镜像。
+
+### 5.3 不使用 Compose 直接运行
+
+```bash
+sudo docker run -d \
+  --name visualhunt \
+  -p 5000:5000 \
+  -v /opt/visualHunt/data:/app/data \
+  -v /opt/visualHunt/finetuned:/app/finetuned \
+  -v /opt/visualHunt/runtime_config.json:/app/runtime_config.json \
+  --restart unless-stopped \
+  visualhunt:dev
 ```
 
 ---
 
 ## 六、Nginx 反向代理配置（多项目共存）
 
-服务器上已有其他项目，建议使用 **Nginx 反向代理 + 路径区分** 或 **子域名** 方式部署。
+服务器上还有其他项目，使用 Nginx 做反向代理，通过**路径区分**或**子域名**暴露 VisualHunt。
 
-### 方式 A：路径区分（推荐，无需额外域名）
+### 方式 A：路径区分（推荐）
 
 假设服务器 IP 为 `1.2.3.4`，将 VisualHunt 挂在 `/visualhunt/` 路径下：
 
 ```bash
 sudo vim /etc/nginx/sites-available/visualhunt
 ```
-
-写入：
 
 ```nginx
 server {
@@ -182,14 +186,13 @@ server {
         proxy_redirect off;
     }
 
-    # 静态资源（如有需要）
     location /visualhunt/static/ {
         alias /opt/visualHunt/src/api/static/;
     }
 }
 ```
 
-然后创建软链接启用：
+启用：
 
 ```bash
 sudo ln -sf /etc/nginx/sites-available/visualhunt /etc/nginx/sites-enabled/visualhunt
@@ -197,15 +200,13 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-> ⚠️ Flask 的 `url_for` 可能需要适配 `APPLICATION_ROOT` 或反向代理头。如果前端链接异常，可在 `src/api/app.py` 中增加 `ProxyFix`：
+> 如果前端链接异常，可在 `src/api/app.py` 中增加 `ProxyFix`：
 > ```python
 > from werkzeug.middleware.proxy_fix import ProxyFix
 > app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)
 > ```
 
 ### 方式 B：独立子域名
-
-如果有域名，可为 VisualHunt 配置独立子域名（如 `visualhunt.yourdomain.com`）：
 
 ```nginx
 server {
@@ -229,37 +230,35 @@ server {
 
 ## 七、防火墙配置
 
-如果服务器启用了 UFW，开放 80 端口即可，Flask 的 5000 端口**不需要**对外暴露：
+开放 80 端口（Nginx），容器映射的 5000 端口**不需要**对外暴露：
 
 ```bash
 sudo ufw allow 80/tcp
 sudo ufw reload
 ```
 
-> 如果没有启用 UFW，通常是云厂商的安全组控制，请在控制台放行 80 端口。
+> 云服务器还需在厂商控制台的安全组中放行 80 端口。
 
 ---
 
 ## 八、验证部署
 
-1. **服务状态检查**：
+1. **容器状态检查**：
    ```bash
-   sudo systemctl status visualhunt
+   sudo docker ps | grep visualhunt
+   sudo docker logs visualhunt
+   ```
+
+2. **本机访问测试**：
+   ```bash
    curl http://127.0.0.1:5000
    ```
 
-2. **Nginx 代理检查**：
+3. **Nginx 代理测试**：
    ```bash
-   # 方式 A（路径区分）
-   curl http://1.2.3.4/visualhunt/
-
-   # 方式 B（子域名）
-   curl http://visualhunt.yourdomain.com
+   curl http://1.2.3.4/visualhunt/        # 方式 A
+   curl http://visualhunt.yourdomain.com   # 方式 B
    ```
-
-3. **浏览器访问**：
-   - 路径区分：`http://<服务器IP>/visualhunt/`
-   - 子域名：`http://visualhunt.yourdomain.com`
 
 ---
 
@@ -270,7 +269,11 @@ sudo ufw reload
 ```bash
 cd /opt/visualHunt
 git pull origin dev
-sudo systemctl restart visualhunt
+
+# 如果依赖有变化，需要重新构建 .venv 和镜像
+uv sync
+sudo docker compose down
+sudo docker compose up -d --build
 ```
 
 ### 9.2 重新训练模型（可选）
@@ -278,29 +281,23 @@ sudo systemctl restart visualhunt
 ```bash
 cd /opt/visualHunt
 
-# 图像分类
+# 在宿主机上训练（直接使用 .venv）
 uv run vh train --task classification
-
-# 图像去噪
 uv run vh train --task denoising
-
-# 图像相似度
 uv run vh train --task similarity
 
-# 重启服务生效
-sudo systemctl restart visualhunt
+# 重启容器加载新模型
+sudo docker compose restart
 ```
 
-### 9.3 日志排查
+### 9.3 查看日志与排查
 
 ```bash
-# 查看服务日志
-sudo journalctl -u visualhunt -n 100 --no-pager
+# 容器实时日志
+sudo docker logs -f visualhunt
 
-# 查看 Nginx 访问日志
+# Nginx 日志
 sudo tail -f /var/log/nginx/access.log
-
-# 查看 Nginx 错误日志
 sudo tail -f /var/log/nginx/error.log
 ```
 
@@ -310,11 +307,11 @@ sudo tail -f /var/log/nginx/error.log
 
 ```text
 /opt/visualHunt/
-├── .venv/                  # uv 虚拟环境
+├── .venv/                  # 宿主机预构建的虚拟环境（会被复制到镜像）
 ├── data/
 │   ├── dataset/            # 样本图片
 │   └── fashion-labels.csv
-├── finetuned/              # 预训练模型（已包含）
+├── finetuned/              # 预训练模型
 │   ├── classifier.pt
 │   ├── decoder.pt
 │   ├── denoiser.pt
@@ -328,17 +325,20 @@ sudo tail -f /var/log/nginx/error.log
 │   ├── engine.py
 │   ├── models.py
 │   └── utils.py
+├── Dockerfile              # Docker 构建文件
+├── docker-compose.yml      # Docker Compose 配置
+├── .dockerignore           # Docker 构建上下文排除规则
 ├── main.py                 # 启动入口
-├── runtime_config.json     # 运行配置
+├── runtime_config.json     # 运行配置（host 需为 0.0.0.0）
 ├── pyproject.toml
 └── README.md
 ```
 
 ---
 
-## 附录：一键部署脚本（可选）
+## 附录：一键部署脚本
 
-将以下内容保存为 `deploy.sh`，在服务器上执行：
+在服务器上保存为 `deploy.sh` 并执行：
 
 ```bash
 #!/bin/bash
@@ -346,65 +346,47 @@ set -e
 
 PROJECT_DIR="/opt/visualHunt"
 REPO_URL="https://gitee.com/myparadises/visual-hunt.git"
-UV_BIN="$HOME/.local/bin/uv"
 
-echo "=== 1. 安装基础依赖 ==="
-sudo apt update -y
-sudo apt install -y git wget curl vim nginx
+echo "=== 1. 克隆项目 ==="
+sudo mkdir -p /opt
+if [ ! -d "$PROJECT_DIR/.git" ]; then
+    sudo git clone -b dev "$REPO_URL" "$PROJECT_DIR"
+fi
+sudo chown -R "$(whoami):$(whoami)" "$PROJECT_DIR"
 
 echo "=== 2. 安装 uv ==="
-if [ ! -f "$UV_BIN" ]; then
+if [ ! -f "$HOME/.local/bin/uv" ]; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
     source "$HOME/.local/bin/env"
 fi
 
-echo "=== 3. 克隆项目 ==="
-sudo mkdir -p /opt
-if [ ! -d "$PROJECT_DIR/.git" ]; then
-    sudo git clone -b dev "$REPO_URL" "$PROJECT_DIR"
-else
-    echo "项目已存在，跳过克隆"
-fi
-sudo chown -R "$(whoami):$(whoami)" "$PROJECT_DIR"
-
-echo "=== 4. 安装依赖 ==="
+echo "=== 3. 宿主机构建 .venv ==="
 cd "$PROJECT_DIR"
-$UV_BIN sync
+uv sync
 
-echo "=== 5. 配置 systemd ==="
-sudo tee /etc/systemd/system/visualhunt.service > /dev/null <<EOF
-[Unit]
-Description=VisualHunt Flask Web Service
-After=network.target
+echo "=== 4. 修改 runtime_config.json ==="
+# 确保 host 为 0.0.0.0
+python3 -c "
+import json
+with open('runtime_config.json', 'r', encoding='utf-8') as f:
+    cfg = json.load(f)
+cfg['api']['host'] = '0.0.0.0'
+cfg['api']['debug'] = False
+with open('runtime_config.json', 'w', encoding='utf-8') as f:
+    json.dump(cfg, f, indent=2, ensure_ascii=False)
+"
 
-[Service]
-Type=simple
-User=$(whoami)
-WorkingDirectory=$PROJECT_DIR
-ExecStart=$UV_BIN run python main.py
-Restart=always
-RestartSec=5
-Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONIOENCODING=utf-8
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable visualhunt
-sudo systemctl start visualhunt
-
-echo "=== 6. 启动 Nginx ==="
-sudo systemctl enable nginx
-sudo systemctl start nginx
+echo "=== 5. 构建并启动 Docker 容器 ==="
+sudo docker compose -f "$PROJECT_DIR/docker-compose.yml" down || true
+sudo docker compose -f "$PROJECT_DIR/docker-compose.yml" up -d --build
 
 echo "=== 部署完成 ==="
-echo "请手动配置 Nginx 反向代理，并修改 runtime_config.json 中的 api.debug 为 false"
-echo "查看服务状态: sudo systemctl status visualhunt"
+echo "查看容器状态: sudo docker ps | grep visualhunt"
+echo "查看实时日志: sudo docker logs -f visualhunt"
+echo "请手动配置 Nginx 反向代理"
 ```
 
-运行：
+执行：
 
 ```bash
 chmod +x deploy.sh
@@ -413,4 +395,4 @@ chmod +x deploy.sh
 
 ---
 
-> 如有问题，请检查 `journalctl -u visualhunt` 和 Nginx 错误日志进行排查。
+> 如有问题，请检查 `sudo docker logs visualhunt` 和 Nginx 错误日志进行排查。
